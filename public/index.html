@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA — AI</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">N</div><div><b>NOVA</b><span>AI ASSISTANT</span></div></div>
+    <button id="newChat" class="new">＋ Новый чат</button>
+    <div class="side-title">Чаты</div>
+    <div id="chatList" class="chat-list"></div>
+    <div class="side-bottom">
+      <div class="safe">● Система онлайн</div>
+      <small>Модель: NOVA AI</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header><button id="mobileMenu" class="icon">☰</button><div><h1>NOVA</h1><p>Твой персональный ИИ</p></div><button id="clear" class="icon">⌫</button></header>
+
+    <section id="welcome" class="welcome">
+      <div class="orb">✦</div>
+      <h2>Привет. Я NOVA.</h2>
+      <p>Универсальный ИИ для вопросов, идей, текста, программирования и обучения.</p>
+      <div class="suggestions">
+        <button data-q="Объясни простыми словами, как работает искусственный интеллект">🧠 Объяснить тему</button>
+        <button data-q="Помоги придумать идею для проекта">💡 Придумать идею</button>
+        <button data-q="Напиши пример современного сайта на HTML и CSS">💻 Написать код</button>
+        <button data-q="Помоги составить план изучения английского">📚 Составить план</button>
+      </div>
+    </section>
+
+    <section id="messages" class="messages"></section>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea id="input" rows="1" placeholder="Напиши сообщение NOVA..."></textarea>
+        <button id="send" class="send">➤</button>
+      </div>
+      <div class="hint">NOVA может ошибаться. Проверяй важную информацию.</div>
+    </div>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
