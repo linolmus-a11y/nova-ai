@@ -1,46 +1,8 @@
-const $=s=>document.querySelector(s);
-const messages=$("#messages"), input=$("#input"), welcome=$("#welcome"), list=$("#chatList");
-let history=[], chats=[];
-
-function addMessage(role,text){
-  welcome.style.display="none";
-  const row=document.createElement("div"); row.className="msg "+(role==="user"?"user":"ai");
-  const av=document.createElement("div"); av.className="avatar"; av.textContent=role==="user"?"YOU":"N";
-  const b=document.createElement("div"); b.className="bubble"; b.textContent=text;
-  row.append(av,b); messages.appendChild(row); messages.scrollTop=messages.scrollHeight;
-}
-function save(){
-  localStorage.setItem("nova-history",JSON.stringify(history));
-  renderChats();
-}
-function renderChats(){
-  list.innerHTML="";
-  const titles=chats.slice(-12).reverse();
-  titles.forEach(t=>{let d=document.createElement("div");d.className="chat-item";d.textContent=t;list.appendChild(d)});
-}
-function newChat(){
-  history=[]; messages.innerHTML=""; welcome.style.display="block"; input.value=""; save();
-}
-async function send(text){
-  text=(text??input.value).trim(); if(!text)return;
-  input.value=""; input.style.height="auto"; addMessage("user",text);
-  history.push({role:"user",content:text});
-  if(history.length===1){chats.push(text.slice(0,42));renderChats()}
-  const loading="NOVA печатает…"; addMessage("assistant",loading);
-  const bubble=[...document.querySelectorAll(".msg.ai .bubble")].at(-1);
-  try{
-    const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history})});
-    const data=await r.json(); if(!r.ok)throw Error(data.error||"Server error");
-    bubble.textContent=data.text||"Пустой ответ.";
-    history.push({role:"assistant",content:data.text||""}); save();
-  }catch(e){bubble.textContent="Ошибка: "+e.message; history.pop();}
-  messages.scrollTop=messages.scrollHeight;
-}
-$("#send").onclick=()=>send();
-input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
-input.addEventListener("input",()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,150)+"px"});
-$("#newChat").onclick=newChat; $("#clear").onclick=newChat;
-$("#mobileMenu").onclick=()=>$(".sidebar").classList.toggle("open");
-document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>send(b.dataset.q));
-try{history=JSON.parse(localStorage.getItem("nova-history")||"[]"); if(history.length)history.forEach(m=>addMessage(m.role,m.content));}catch{}
-renderChats();
+const view=document.querySelector("#view"),title=document.querySelector("#title"),state=document.querySelector("#state");let stopped=false,msgs=[];
+const data={agent:["🤖 NOVA Agent","Planner → Executor → Verifier → Recovery",["Планирование","Human Approval","Execution Limits","Проверка результата"]],tasks:["🎯 Task Manager","Очередь задач и статусы",["Приоритеты","Повтор","Отмена","Зависимости"]],workflow:["🔀 Workflow Engine","Автоматизация",["IF → THEN","Циклы","Параллельные действия","Расписание"]],search:["⌕ Web Search","Поиск с защитой от Prompt Injection",["Источники","Сравнение","Глубокий поиск","Sanitizer"]],files:["□ Files & Workspace","Ограниченная NOVA Workspace",["Projects","Downloads","Documents","Temp"]],projects:["▣ Projects","Изолированные проекты",["Чаты","Файлы","Память","Инструкции"]],knowledge:["▤ Knowledge Base / RAG","Поиск по знаниям проекта",["Документы","RAG","Семантический поиск","Контекст"]],code:["⌘ NOVA Code","Код через Sandbox",["Python","Node.js","Git","Тесты"]],computer:["▣ Windows Agent","Подключаемый локальный агент",["UI Automation","Клавиатура","Мышь","Screen"]],vision:["◉ NOVA Vision","Понимание экрана",["OCR","UI","Ошибки","Навигация"]],extensions:["＋ Extensions","Интеграции с отдельными разрешениями",["Browser","GitHub","Calendar","Custom API"]],lab:["🧪 NOVA Lab","Git → Tests → Sandbox → Approval",["Evaluation","Benchmark","Rollback","Human Approval"]],monitor:["▥ NOVA Monitor","Состояние системы",["CPU/RAM/GPU","Задачи","Агенты","Ошибки"]],audit:["☷ Audit Log","Журнал с маскированием секретов",["tool.called","permission.requested","task.completed","global.stop"]],security:["⌾ Security","Policy Engine",["ALLOW","CONFIRM","DENY","Secrets"]],privacy:["◌ Privacy Center","Контроль данных",["Cloud AI","Local AI","Memory","Telemetry"]],settings:["⚙ Настройки","Профили, лимиты и fallback",["Model Router","Execution Limits","Profiles","Offline"]]};
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function chat(){title.firstChild.textContent="Чат";state.textContent=stopped?"STOPPED":"IDLE · Cloud/Local fallback";view.innerHTML=`<div class="chat"><div class="msgs">${msgs.map(m=>`<div class="msg ${m.r}"><b>${m.r==="user"?"Вы":"NOVA"}</b><br>${esc(m.t)}</div>`).join("")||`<div class="page"><h1>NOVA 3.0</h1><p class="muted">AI-платформа с Orchestrator, Tool Bus, Policy Engine, Sandbox и Global STOP.</p><div class="cards"><div class="card"><b>🧭 Orchestrator</b>Координация задач</div><div class="card"><b>🛡️ Policy Engine</b>ALLOW / CONFIRM / DENY</div><div class="card"><b>🧪 Sandbox</b>Изоляция выполнения</div><div class="card"><b>🛑 Emergency Stop</b>Остановка вне AI</div></div></div>`}</div><form class="composer"><textarea id="inp" rows="2" placeholder="Напиши задачу NOVA..."></textarea><button>Отправить</button></form></div>`;view.querySelector("form").onsubmit=send}
+async function send(e){e.preventDefault();if(stopped)return;let i=document.querySelector("#inp"),t=i.value.trim();if(!t)return;msgs.push({r:"user",t});state.textContent="PLANNING";chat();try{let r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:msgs.map(m=>({role:m.r==="user"?"user":"assistant",content:m.t}))})}),d=await r.json();msgs.push({r:"assistant",t:d.message||d.error||"Ошибка"});state.textContent="COMPLETED"}catch{msgs.push({r:"assistant",t:"Ошибка соединения с сервером."});state.textContent="FAILED"}chat()}
+function page(k){let p=data[k];title.firstChild.textContent=p[0];state.textContent="IDLE · Policy Engine ready";view.innerHTML=`<div class="page"><h1>${p[0]}</h1><p class="muted">${p[1]}</p><div class="cards">${p[2].map(x=>`<div class="card"><b>${x}</b>Модуль NOVA 3.0</div>`).join("")}</div>${k==="workflow"?'<div class="workflow">Trigger → Planner → Policy → Tool → Verifier → Result</div>':''}</div>`}
+document.querySelectorAll("aside .group button").forEach(b=>b.onclick=()=>{document.querySelectorAll("aside .group button").forEach(x=>x.classList.remove("active"));b.classList.add("active");b.dataset.p==="chat"?chat():page(b.dataset.p)});
+document.querySelector("#new").onclick=()=>{msgs=[];stopped=false;chat()};document.querySelector("#stop").onclick=()=>{stopped=true;state.textContent="EMERGENCY STOP";chat()};document.querySelector("#pause").onclick=()=>{stopped=!stopped;state.textContent=stopped?"PAUSED":"IDLE";chat()};chat();

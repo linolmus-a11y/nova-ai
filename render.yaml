@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: nova-ai
+    name: nova-3
     runtime: node
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: NOVA_MODEL
-        value: gpt-5.6-luna
+      - key: OPENAI_MODEL
+        value: gpt-5-mini

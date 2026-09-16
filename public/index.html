@@ -1,50 +1,12 @@
-<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NOVA — AI</title>
-<link rel="stylesheet" href="/style.css">
-</head>
-<body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="logo">N</div><div><b>NOVA</b><span>AI ASSISTANT</span></div></div>
-    <button id="newChat" class="new">＋ Новый чат</button>
-    <div class="side-title">Чаты</div>
-    <div id="chatList" class="chat-list"></div>
-    <div class="side-bottom">
-      <div class="safe">● Система онлайн</div>
-      <small>Модель: NOVA AI</small>
-    </div>
-  </aside>
-
-  <main class="main">
-    <header><button id="mobileMenu" class="icon">☰</button><div><h1>NOVA</h1><p>Твой персональный ИИ</p></div><button id="clear" class="icon">⌫</button></header>
-
-    <section id="welcome" class="welcome">
-      <div class="orb">✦</div>
-      <h2>Привет. Я NOVA.</h2>
-      <p>Универсальный ИИ для вопросов, идей, текста, программирования и обучения.</p>
-      <div class="suggestions">
-        <button data-q="Объясни простыми словами, как работает искусственный интеллект">🧠 Объяснить тему</button>
-        <button data-q="Помоги придумать идею для проекта">💡 Придумать идею</button>
-        <button data-q="Напиши пример современного сайта на HTML и CSS">💻 Написать код</button>
-        <button data-q="Помоги составить план изучения английского">📚 Составить план</button>
-      </div>
-    </section>
-
-    <section id="messages" class="messages"></section>
-
-    <div class="composer-wrap">
-      <div class="composer">
-        <textarea id="input" rows="1" placeholder="Напиши сообщение NOVA..."></textarea>
-        <button id="send" class="send">➤</button>
-      </div>
-      <div class="hint">NOVA может ошибаться. Проверяй важную информацию.</div>
-    </div>
-  </main>
-</div>
-<script src="/app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA 3.0</title><link rel="stylesheet" href="/style.css"></head><body>
+<div class="app"><aside><div class="brand"><b>N</b><strong>NOVA <small>3.0</small></strong></div>
+<button id="new" class="new">＋ Новый чат</button>
+<div class="group"><label>РАБОЧЕЕ ПРОСТРАНСТВО</label>
+<button data-p="chat">◈ Чат</button><button data-p="agent">🤖 Агент</button><button data-p="tasks">🎯 Задачи</button><button data-p="workflow">🔀 Workflow</button><button data-p="search">⌕ Поиск</button><button data-p="files">□ Файлы</button><button data-p="projects">▣ Проекты</button><button data-p="knowledge">▤ Knowledge Base</button></div>
+<div class="group"><label>ИНСТРУМЕНТЫ</label><button data-p="code">⌘ Код</button><button data-p="computer">▣ Компьютер</button><button data-p="vision">◉ Vision</button><button data-p="extensions">＋ Extensions</button></div>
+<div class="group"><label>СИСТЕМА</label><button data-p="lab">🧪 NOVA Lab</button><button data-p="monitor">▥ Monitor</button><button data-p="audit">☷ Audit Log</button><button data-p="security">⌾ Security</button><button data-p="privacy">◌ Privacy</button><button data-p="settings">⚙ Настройки</button></div>
+<button id="stop" class="stop">■ EMERGENCY STOP</button><span class="online">● Safe Core online</span></aside>
+<main><header><div id="title">Чат<small id="state">IDLE · Cloud/Local fallback</small></div><button id="pause">Ⅱ Пауза</button></header><section id="view"></section></main></div>
+<script src="/app.js"></script></body></html>
