@@ -8,7 +8,9 @@ dotenv.config();
 const app = express();
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const VERSION = '5.0.0';
+const VERSION = '5.1.0';
+const providerState = { cloud: { status: 'UNKNOWN', failures: 0, disabledUntil: 0, lastError: null, lastChecked: 0 }, local: { status: 'UNKNOWN', lastError: null, lastChecked: 0 } };
+const CIRCUIT_COOLDOWN_MS = Number(process.env.CLOUD_COOLDOWN_MS || 60000);
 const sessions = new Map();
 const tasks = new Map();
 const audit = [];
@@ -33,10 +35,28 @@ function providerError(status) {
   if (status === 429) return err('RATE_OR_CREDITS', 'Облачный AI временно недоступен: достигнут лимит или закончились кредиты.');
   return err('PROVIDER_ERROR', 'AI-провайдер временно недоступен.');
 }
-async function callProvider(messages) {
+function markCloudFailure(error) {
+  providerState.cloud.status = error.code === 'RATE_OR_CREDITS' ? 'NO_CREDITS' : 'ERROR';
+  providerState.cloud.failures += 1;
+  providerState.cloud.lastError = error.code;
+  providerState.cloud.lastChecked = Date.now();
+  providerState.cloud.disabledUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+  log('provider.cloud.unavailable', { code: error.code, disabledUntil: providerState.cloud.disabledUntil });
+}
+function cloudAvailable() {
+  return Boolean(process.env.OPENAI_API_KEY) && Date.now() >= providerState.cloud.disabledUntil;
+}
+function markCloudSuccess() {
+  providerState.cloud.status = 'AVAILABLE';
+  providerState.cloud.failures = 0;
+  providerState.cloud.lastError = null;
+  providerState.cloud.disabledUntil = 0;
+  providerState.cloud.lastChecked = Date.now();
+}
+async function callCloud(messages) {
   const cloud = process.env.OPENAI_API_KEY;
-  const localUrl = process.env.LOCAL_AI_URL;
-  if (cloud) {
+  if (!cloud) return { ok: false, error: err('NO_CLOUD_PROVIDER', 'Cloud AI не настроен.') };
+  try {
     const r = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${cloud}` },
@@ -46,23 +66,48 @@ async function callProvider(messages) {
     if (!r.ok) return { ok: false, error: providerError(r.status) };
     const text = typeof d.output_text === 'string' ? d.output_text.trim() : '';
     return text ? { ok: true, text, model: process.env.OPENAI_MODEL || 'gpt-5-mini', provider: 'cloud' } : { ok: false, error: err('EMPTY_RESPONSE', 'AI не вернул текстовый ответ.') };
+  } catch { return { ok: false, error: err('CLOUD_NETWORK_ERROR', 'Cloud AI временно недоступен.') }; }
+}
+async function callLocal(messages) {
+  const localUrl = process.env.LOCAL_AI_URL;
+  if (!localUrl) return { ok: false, error: err('NO_LOCAL_PROVIDER', 'Local AI не настроен.') };
+  try {
+    const r = await fetch(localUrl, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: process.env.LOCAL_AI_MODEL || 'llama3.2', messages: [{ role: 'system', content: SYSTEM }, ...messages], stream: false })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: err('LOCAL_AI_ERROR', 'Локальная модель недоступна.') };
+    const text = d?.choices?.[0]?.message?.content?.trim();
+    return text ? { ok: true, text, model: process.env.LOCAL_AI_MODEL || 'llama3.2', provider: 'local' } : { ok: false, error: err('EMPTY_RESPONSE', 'Локальная модель не вернула ответ.') };
+  } catch { return { ok: false, error: err('LOCAL_AI_OFFLINE', 'Локальная модель недоступна.') }; }
+}
+async function callProvider(messages) {
+  // 5.1: one request, one provider decision. NO_CREDITS opens the cloud circuit and is never retried immediately.
+  if (cloudAvailable()) {
+    const cloudResult = await callCloud(messages);
+    if (cloudResult.ok) { markCloudSuccess(); return cloudResult; }
+    if (['RATE_OR_CREDITS','AUTH_ERROR','CLOUD_NETWORK_ERROR','PROVIDER_ERROR'].includes(cloudResult.error.code)) markCloudFailure(cloudResult.error);
+    if (cloudResult.error.code !== 'RATE_OR_CREDITS' && cloudResult.error.code !== 'AUTH_ERROR' && cloudResult.error.code !== 'CLOUD_NETWORK_ERROR' && cloudResult.error.code !== 'PROVIDER_ERROR') return cloudResult;
+    // Fall through exactly once to Local AI when configured.
+    const localResult = await callLocal(messages);
+    if (localResult.ok) { providerState.local.status = 'AVAILABLE'; providerState.local.lastError = null; providerState.local.lastChecked = Date.now(); log('provider.failover', { from: 'cloud', to: 'local', reason: cloudResult.error.code }); return localResult; }
+    providerState.local.status = 'ERROR'; providerState.local.lastError = localResult.error.code; providerState.local.lastChecked = Date.now();
+    return { ok: false, error: err('ALL_PROVIDERS_UNAVAILABLE', 'Cloud AI недоступен, а Local AI не настроен или недоступен.'), cloudError: cloudResult.error, localError: localResult.error };
   }
-  if (localUrl) {
-    try {
-      const r = await fetch(localUrl, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: process.env.LOCAL_AI_MODEL || 'llama3.2', messages: [{ role: 'system', content: SYSTEM }, ...messages], stream: false })
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) return { ok: false, error: err('LOCAL_AI_ERROR', 'Локальная модель недоступна.') };
-      const text = d?.choices?.[0]?.message?.content?.trim();
-      return text ? { ok: true, text, model: process.env.LOCAL_AI_MODEL || 'llama3.2', provider: 'local' } : { ok: false, error: err('EMPTY_RESPONSE', 'Локальная модель не вернула ответ.') };
-    } catch { return { ok: false, error: err('LOCAL_AI_OFFLINE', 'Локальная модель недоступна. Запрос не отправлен в облако.') }; }
+  // Circuit is open or Cloud is absent: do not hit Cloud again; use Local directly.
+  if (process.env.LOCAL_AI_URL) {
+    const localResult = await callLocal(messages);
+    if (localResult.ok) { providerState.local.status = 'AVAILABLE'; providerState.local.lastError = null; providerState.local.lastChecked = Date.now(); return localResult; }
+    providerState.local.status = 'ERROR'; providerState.local.lastError = localResult.error.code; providerState.local.lastChecked = Date.now();
+    return localResult;
   }
+  if (providerState.cloud.status === 'NO_CREDITS') return { ok: false, error: err('CLOUD_NO_CREDITS', 'Cloud AI временно отключён после исчерпания кредитов. NOVA не повторяет запросы к Cloud. Настройте Local AI или дождитесь проверки Cloud.') };
   return { ok: false, error: err('NO_PROVIDER', 'AI-провайдер не настроен. Добавьте Cloud API key или LOCAL_AI_URL.') };
 }
 
-app.get('/api/health', (_, res) => res.json({ ok: true, version: VERSION, status: 'online' }));
+app.get('/api/health', (_, res) => res.json({ ok: true, version: VERSION, status: 'online', providers: providerState }));
+app.get('/api/providers', (_, res) => res.json({ ok: true, providers: providerState, cooldownMs: CIRCUIT_COOLDOWN_MS }));
 app.get('/api/config', (_, res) => res.json({
   version: VERSION,
   cloudConfigured: Boolean(process.env.OPENAI_API_KEY),
@@ -70,7 +115,7 @@ app.get('/api/config', (_, res) => res.json({
   cloudModel: process.env.OPENAI_MODEL || 'gpt-5-mini',
   localModel: process.env.LOCAL_AI_MODEL || 'llama3.2',
   publicUrl: process.env.NOVA_PUBLIC_URL || null,
-  architecture: ['runtime','state','event-bus','intelligence','orchestrator','tool-bus','policy-engine','capabilities','sandbox','verifier','global-stop']
+  architecture: ['runtime','state','event-bus','intelligence','orchestrator','tool-bus','provider-manager','model-router','circuit-breaker','fallback-policy','policy-engine','capabilities','sandbox','verifier','global-stop']
 }));
 
 app.post('/api/chat', async (req, res) => {
