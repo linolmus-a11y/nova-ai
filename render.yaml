@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: nova-3
+    name: nova-ai
     runtime: node
     buildCommand: npm install
     startCommand: npm start

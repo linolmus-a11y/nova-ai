@@ -1,14 +1,28 @@
-# NOVA 3.0
-Безопасное ядро и интерфейс NOVA 3.0.
+# NOVA 5.0
 
-Запуск:
-1. Node.js 20+
-2. Скопировать `.env.example` в `.env`
-3. Добавить `OPENAI_API_KEY`
+NOVA 5.0 — архитектурно усиленная версия NOVA 4.0. В этой сборке реализован рабочий web-chat с отдельными сессиями, нормальной передачей истории, защитой от повторного запроса, понятной обработкой API-ошибок, Global STOP, Cloud AI и опциональным OpenAI-compatible Local AI.
+
+## Запуск
+
+Node.js 18+.
+
+1. Скопируйте `.env.example` в `.env`.
+2. Для облачного AI задайте `OPENAI_API_KEY` и при необходимости `OPENAI_MODEL`.
+3. Для локального AI задайте `LOCAL_AI_URL` (например, OpenAI-compatible endpoint Ollama) и `LOCAL_AI_MODEL`.
 4. `npm install`
 5. `npm start`
+6. Откройте `http://localhost:3000`.
 
-Архитектурный принцип:
-AI → Orchestrator → Tool Bus → Policy Engine → Permission → Sandbox → Tool → Verification.
+## Важно
 
-Windows Agent, удалённое управление и выполнение кода здесь оставлены как безопасные точки расширения, а не как неконтролируемый доступ к ПК.
+Интерфейс содержит разделы архитектуры NOVA 5.0, но реальное управление Windows, браузером, кодом, Sandbox, Web Search, RAG, Multi-Agent и другими инструментами требует отдельных backend/tool implementations и разрешений. Эта сборка не притворяется, что такие действия уже выполнены.
+
+### Архитектура
+
+Runtime → State → Orchestrator → Tool Bus → Policy Engine → Capabilities → Sandbox → Tool → Verifier.
+
+Global STOP и Policy должны оставаться вне контроля модели.
+
+### Исправление ошибки API credits
+
+При `429` или отсутствии кредитов техническая ошибка не добавляется в историю чата, поэтому она не будет появляться бесконечной серией сообщений. Пользователь получает одно понятное уведомление. Для работы без облачных кредитов можно настроить локальный OpenAI-compatible provider через `LOCAL_AI_URL`.
