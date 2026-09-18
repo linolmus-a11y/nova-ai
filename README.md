@@ -1,14 +1,7 @@
-# NOVA 5.2
-Local AI + Ollama + LAN access.
+# NOVA 5.3
 
-Ollama remains a separate Windows application.
-Models stay wherever Ollama is configured (for you: E:\Ollama\models).
+Local AI/Ollama foundation with redesigned dark UI, mobile UX, photo/video entry points and Express 5 SPA fallback.
 
-Start:
-cd E:\nova5.2\nova_build
-npm.cmd install
-npm.cmd start
+Run: `npm.cmd install` then `npm.cmd start`.
+Do not commit `.env`.
 
-NOVA expects Ollama at http://127.0.0.1:11434.
-Do not expose Ollama port 11434 to the Internet.
-For phone access, use the PC LAN address on port 3000.
