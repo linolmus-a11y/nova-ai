@@ -140,6 +140,6 @@ app.get("/api/config",(_req,res)=>res.json({
   architecture:["runtime","local-ai-manager","ollama-manager","model-router","mobile-network-access","response-source"]
 }));
 
-app.get("*",(_req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+app.use((_req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
 
 app.listen(PORT,HOST,()=>console.log(`NOVA 5.2: http://${HOST}:${PORT}`));
